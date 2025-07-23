@@ -288,7 +288,10 @@ extension PersistentStorage {
         #if os(tvOS) || os(macOS)
             let searchPathDirectory = FileManager.SearchPathDirectory.cachesDirectory
         #else
-            let searchPathDirectory = FileManager.SearchPathDirectory.documentDirectory
+            // DOC-14523 DOC-14605
+            // Change default searchPathDirectory from documentDirectory to libraryDirectory
+            // To prevent amplitude storage from being exposed to the app's VFS and Files app
+            let searchPathDirectory = FileManager.SearchPathDirectory.libraryDirectory
         #endif
 
         let urls = fileManager.urls(for: searchPathDirectory, in: .userDomainMask)
