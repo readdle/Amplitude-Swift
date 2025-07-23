@@ -288,7 +288,7 @@ extension PersistentStorage {
         #if os(tvOS) || os(macOS)
             let searchPathDirectory = FileManager.SearchPathDirectory.cachesDirectory
         #else
-            let searchPathDirectory = FileManager.SearchPathDirectory.documentDirectory
+            let searchPathDirectory = FileManager.SearchPathDirectory.libraryDirectory
         #endif
 
         let urls = fileManager.urls(for: searchPathDirectory, in: .userDomainMask)
