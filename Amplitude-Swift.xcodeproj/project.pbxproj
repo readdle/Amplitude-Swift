@@ -108,6 +108,7 @@
 		EAED9A0D2EE7B47E00A5FC08 /* IdentityEventSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_26 /* IdentityEventSender.swift */; };
 		EAED9A0E2EE7B47E00A5FC08 /* MacOSLifecycleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_28 /* MacOSLifecycleMonitor.swift */; };
 		EAED9A0F2EE7B47E00A5FC08 /* AppUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_30 /* AppUtil.swift */; };
+		A1C0FFEE2F0000000000A002 /* MacAddress.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE2F0000000000A001 /* MacAddress.swift */; };
 		EAED9A102EE7B47E00A5FC08 /* VendorSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_31 /* VendorSystem.swift */; };
 		EAED9A112EE7B47E00A5FC08 /* IOSLifecycleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_33 /* IOSLifecycleMonitor.swift */; };
 		EAED9A122EE7B47E00A5FC08 /* WatchOSLifecycleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_35 /* WatchOSLifecycleMonitor.swift */; };
@@ -184,6 +185,7 @@
 		OBJ_104 /* IdentityEventSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_26 /* IdentityEventSender.swift */; };
 		OBJ_105 /* MacOSLifecycleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_28 /* MacOSLifecycleMonitor.swift */; };
 		OBJ_106 /* AppUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_30 /* AppUtil.swift */; };
+		A1C0FFEE2F0000000000A003 /* MacAddress.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE2F0000000000A001 /* MacAddress.swift */; };
 		OBJ_107 /* VendorSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_31 /* VendorSystem.swift */; };
 		OBJ_108 /* IOSLifecycleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_33 /* IOSLifecycleMonitor.swift */; };
 		OBJ_109 /* WatchOSLifecycleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = OBJ_35 /* WatchOSLifecycleMonitor.swift */; };
@@ -340,6 +342,7 @@
 		OBJ_26 /* IdentityEventSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEventSender.swift; sourceTree = "<group>"; };
 		OBJ_28 /* MacOSLifecycleMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacOSLifecycleMonitor.swift; sourceTree = "<group>"; };
 		OBJ_30 /* AppUtil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUtil.swift; sourceTree = "<group>"; };
+		A1C0FFEE2F0000000000A001 /* MacAddress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacAddress.swift; sourceTree = "<group>"; };
 		OBJ_31 /* VendorSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorSystem.swift; sourceTree = "<group>"; };
 		OBJ_33 /* IOSLifecycleMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSLifecycleMonitor.swift; sourceTree = "<group>"; };
 		OBJ_35 /* WatchOSLifecycleMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchOSLifecycleMonitor.swift; sourceTree = "<group>"; };
@@ -534,6 +537,7 @@
 			isa = PBXGroup;
 			children = (
 				OBJ_30 /* AppUtil.swift */,
+				A1C0FFEE2F0000000000A001 /* MacAddress.swift */,
 				OBJ_31 /* VendorSystem.swift */,
 			);
 			path = Vendors;
@@ -935,6 +939,7 @@
 				EAED9A0D2EE7B47E00A5FC08 /* IdentityEventSender.swift in Sources */,
 				EAED9A0E2EE7B47E00A5FC08 /* MacOSLifecycleMonitor.swift in Sources */,
 				EAED9A0F2EE7B47E00A5FC08 /* AppUtil.swift in Sources */,
+				A1C0FFEE2F0000000000A002 /* MacAddress.swift in Sources */,
 				EAED9A102EE7B47E00A5FC08 /* VendorSystem.swift in Sources */,
 				EAED9A112EE7B47E00A5FC08 /* IOSLifecycleMonitor.swift in Sources */,
 				EAED9A122EE7B47E00A5FC08 /* WatchOSLifecycleMonitor.swift in Sources */,
@@ -1077,6 +1082,7 @@
 				OBJ_104 /* IdentityEventSender.swift in Sources */,
 				OBJ_105 /* MacOSLifecycleMonitor.swift in Sources */,
 				OBJ_106 /* AppUtil.swift in Sources */,
+				A1C0FFEE2F0000000000A003 /* MacAddress.swift in Sources */,
 				OBJ_107 /* VendorSystem.swift in Sources */,
 				OBJ_108 /* IOSLifecycleMonitor.swift in Sources */,
 				OBJ_109 /* WatchOSLifecycleMonitor.swift in Sources */,
