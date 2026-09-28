@@ -73,22 +73,31 @@ extension Amplitude {
     static var testInstance = Amplitude(
         configuration: Configuration(
             apiKey: "TEST-API-KEY",
-            logLevel: LogLevelEnum.DEBUG,
+            logLevel: LogLevelEnum.debug,
             callback: { (event: BaseEvent, code: Int, message: String) -> Void in
                 print("eventcallback: \(event), code: \(code), message: \(message)")
             },
             trackingOptions: TrackingOptions().disableTrackCarrier().disableTrackDMA(),
             flushEventsOnClose: true,
             minTimeBetweenSessionsMillis: 15000,
-            autocapture: .all,
+            autocapture: [.sessions, .appLifecycles, .networkTracking, .frustrationInteractions],
+//            networkTrackingOptions: .init(
+//                captureRules: [
+//                    .init(hosts: ["*"]), // all hosts, 500-599
+//                    .init(hosts: ["httpstat.us"], statusCodeRange: "0,400-599"),
+//                ],
+//                ignoreHosts: ["notmyapi.com"],
+//                ignoreAmplitudeRequests: true
+//            ),
             networkTrackingOptions: .init(
                 captureRules: [
-                    .init(hosts: ["*"]), // all hosts, 500-599
-                    .init(hosts: ["httpstat.us"], statusCodeRange: "0,400-599"),
+//                    .init(hosts: ["*"]), // all hosts, 500-599
+                    .init(urls: [.regex("https://httpbin\\.org/")], statusCodeRange: "0,400-599", requestBody: .init(allowlist: ["**"])),
                 ],
                 ignoreHosts: ["notmyapi.com"],
                 ignoreAmplitudeRequests: true
             ),
+            interactionsOptions: .init(deadClick: .init(enabled: false)),
         )
     )
 

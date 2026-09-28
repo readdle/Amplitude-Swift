@@ -76,13 +76,14 @@ public class ObjCConfiguration: NSObject {
     }
 
     @objc
-    public var logLevel: LogLevelEnum {
+    public var logLevel: ObjCLogLevel {
         get {
-            configuration.logLevel
+            return ObjCLogLevel(configuration.logLevel)
         }
         set(value) {
-            configuration.logLevel = value
-            configuration.loggerProvider.logLevel = value.rawValue
+            let logLevel = value.logLevel
+            configuration.logLevel = logLevel
+            configuration.loggerProvider.logLevel = logLevel.rawValue
         }
     }
 
@@ -91,13 +92,13 @@ public class ObjCConfiguration: NSObject {
         get {
             { (logLevel, message) in
                 switch logLevel {
-                case LogLevelEnum.ERROR.rawValue:
+                case LogLevelEnum.error.rawValue:
                     self.configuration.loggerProvider.error(message: message)
-                case LogLevelEnum.WARN.rawValue:
+                case LogLevelEnum.warn.rawValue:
                     self.configuration.loggerProvider.warn(message: message)
-                case LogLevelEnum.LOG.rawValue:
+                case LogLevelEnum.log.rawValue:
                     self.configuration.loggerProvider.log(message: message)
-                case LogLevelEnum.DEBUG.rawValue:
+                case LogLevelEnum.debug.rawValue:
                     self.configuration.loggerProvider.debug(message: message)
                 default:
                     break
@@ -312,7 +313,44 @@ public class ObjCConfiguration: NSObject {
         }
     }
 
+    @objc
+    public var interactionsOptions: ObjCInteractionsOptions {
+        get {
+            return ObjCInteractionsOptions(configuration.interactionsOptions)
+        }
+        set(value) {
+            configuration.interactionsOptions = value.options
+        }
+    }
+
     @objc public var enableAutoCaptureRemoteConfig: Bool {
         return configuration.enableAutoCaptureRemoteConfig
+    }
+
+    @objc public var enableRequestBodyCompression: Bool {
+        get {
+            return configuration.enableRequestBodyCompression
+        }
+        set {
+            configuration.enableRequestBodyCompression = newValue
+        }
+    }
+
+    @objc public var userId: String? {
+        get {
+            configuration.userId
+        }
+        set {
+            configuration.userId = newValue
+        }
+    }
+
+    @objc public var deviceId: String? {
+        get {
+            configuration.deviceId
+        }
+        set {
+            configuration.deviceId = newValue
+        }
     }
 }
