@@ -16,17 +16,22 @@ class LegacyDatabaseStorage {
     let databasePath: String
     let logger: (any Logger)?
 
-    public static func getStorage(_ instanceName: String, _ logger: (any Logger)?) -> LegacyDatabaseStorage {
+    public static func getStorage(
+        _ instanceName: String,
+        _ logger: (any Logger)?,
+        databaseURL: URL? = nil
+    ) -> LegacyDatabaseStorage {
         instanceQueue.sync {
             var normalizedInstanceName = instanceName.lowercased()
             if normalizedInstanceName == Constants.Configuration.DEFAULT_INSTANCE {
                 normalizedInstanceName = ""
             }
-            if let storage = instances[normalizedInstanceName] {
+            let databasePath = (databaseURL ?? getDatabasePath(normalizedInstanceName)).path
+            if let storage = instances[databasePath] {
                 return storage
             }
-            let storage = LegacyDatabaseStorage(getDatabasePath(normalizedInstanceName).path, logger)
-            instances[normalizedInstanceName] = storage
+            let storage = LegacyDatabaseStorage(databasePath, logger)
+            instances[databasePath] = storage
             return storage
         }
     }

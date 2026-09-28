@@ -294,6 +294,16 @@ public class ObjCConfiguration: NSObject {
     }
 
     @objc
+    public var legacyDatabaseURL: URL? {
+        get {
+            configuration.legacyDatabaseURL
+        }
+        set(value) {
+            configuration.legacyDatabaseURL = value
+        }
+    }
+
+    @objc
     public var offline: NSNumber? {
         get {
             return configuration.offline as NSNumber?
