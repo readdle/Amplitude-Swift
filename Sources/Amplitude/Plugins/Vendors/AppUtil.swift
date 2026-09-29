@@ -179,7 +179,13 @@ import Foundation
         override var identifierForVendor: String? {
             // apple suggested to use this for receipt validation
             // in MAS, works for this too.
-            return MacAddress.primaryInterface()
+            // macOS 27+ redacts MAC addresses to 02:00:00:00:00:00 on every device, which no
+            // longer identifies anything, so treat it as unavailable.
+            guard let macAddress = MacAddress.primaryInterface(), macAddress != "02:00:00:00:00:00" else {
+                return nil
+            }
+
+            return macAddress
         }
 
         override var os_name: String {
