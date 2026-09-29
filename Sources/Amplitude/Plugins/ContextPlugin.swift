@@ -168,6 +168,7 @@ class ContextPlugin: BeforePlugin {
     func isValidDeviceId(_ deviceId: String?) -> Bool {
         if deviceId == nil || deviceId == "e3f5536a141811db40efd6400f1d0a4e"
             || deviceId == "04bab7ee75b9a58d39b8dc54e8851084"
+            || deviceId == "020000000000"
         {
             return false
         }
