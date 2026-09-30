@@ -12,6 +12,12 @@ import XCTest
 final class EventPipelineTests: XCTestCase {
     private static let FLUSH_INTERVAL_SECONDS = 10.0
 
+    // Wait budgets here are deliberately loose (10 s; 15 s where the SDK's own 1 s + 2 s retry
+    // backoff is being waited out). Everything goes through FakeHttpClient in-process, so a
+    // green run returns as soon as the expectation fires; the budget only decides how long a
+    // genuinely broken run takes to report. The original 1-2 s budgets were exceeded on a
+    // 3-vCPU CI simulator, and the indexing that followed turned that into a bundle crash.
+
     private var configuration: Configuration!
     private var pipeline: EventPipeline!
     private var httpClient: FakeHttpClient!
@@ -22,7 +28,8 @@ final class EventPipelineTests: XCTestCase {
         storage = PersistentStorage(
             storagePrefix: "event-pipeline-tests",
             logger: nil,
-            diagonostics: Diagnostics())
+            diagonostics: Diagnostics(),
+            diagnosticsClient: FakeDiagnosticsClient())
         configuration = Configuration(
             apiKey: "testApiKey",
             flushIntervalMillis: Int(Self.FLUSH_INTERVAL_SECONDS * 1000),
@@ -55,12 +62,12 @@ final class EventPipelineTests: XCTestCase {
         }
         XCTAssertEqual(testEvent.attempts, 1)
 
-        let waitResult = XCTWaiter.wait(for: [eventExpectation], timeout: 1)
+        let waitResult = XCTWaiter.wait(for: [eventExpectation], timeout: 10)
         XCTAssertNotEqual(waitResult, .timedOut)
         XCTAssertEqual(pipeline.eventCount, 1)
     }
 
-    func testFlush() {
+    func testFlush() throws {
         let testEvent = BaseEvent(userId: "unit-test", deviceId: "unit-test-machine", eventType: "testEvent")
         try? pipeline.storage?.write(key: StorageKey.EVENTS, value: testEvent)
 
@@ -68,12 +75,12 @@ final class EventPipelineTests: XCTestCase {
         pipeline.flush {
             flushExpectation.fulfill()
         }
-        let waitResult = XCTWaiter.wait(for: [flushExpectation], timeout: 1)
+        let waitResult = XCTWaiter.wait(for: [flushExpectation], timeout: 10)
         XCTAssertNotEqual(waitResult, .timedOut)
         XCTAssertEqual(httpClient.uploadCount, 1)
-        let uploadedEvents = BaseEvent.fromArrayString(jsonString: httpClient.uploadedEvents[0])
+        let uploadedEvents = BaseEvent.fromArrayString(jsonString: try XCTUnwrap(httpClient.uploadedEvents.first))
         XCTAssertEqual(uploadedEvents?.count, 1)
-        XCTAssertEqual(uploadedEvents![0].eventType, "testEvent")
+        XCTAssertEqual(uploadedEvents?.first?.eventType, "testEvent")
     }
 
     func testFlushWhenOffline() {
@@ -92,7 +99,7 @@ final class EventPipelineTests: XCTestCase {
         XCTAssertEqual(httpClient.uploadCount, 0, "There should be no uploads when offline")
     }
 
-    func testSimultaneousFlush() {
+    func testSimultaneousFlush() throws {
         let testEvent = BaseEvent(userId: "unit-test", deviceId: "unit-test-machine", eventType: "testEvent")
         try? pipeline.storage?.write(key: StorageKey.EVENTS, value: testEvent)
 
@@ -107,13 +114,13 @@ final class EventPipelineTests: XCTestCase {
             return expectation
         }
 
-        wait(for: flushExpectations, timeout: 1)
-        wait(for: [httpResponseExpectation], timeout: 1)
+        wait(for: flushExpectations, timeout: 10)
+        wait(for: [httpResponseExpectation], timeout: 10)
 
         XCTAssertEqual(httpClient.uploadCount, 1)
-        let uploadedEvents = BaseEvent.fromArrayString(jsonString: httpClient.uploadedEvents[0])
+        let uploadedEvents = BaseEvent.fromArrayString(jsonString: try XCTUnwrap(httpClient.uploadedEvents.first))
         XCTAssertEqual(uploadedEvents?.count, 1)
-        XCTAssertEqual(uploadedEvents![0].eventType, "testEvent")
+        XCTAssertEqual(uploadedEvents?.first?.eventType, "testEvent")
     }
 
     func testOneUploadAtATime() {
@@ -136,16 +143,16 @@ final class EventPipelineTests: XCTestCase {
             flushExpectation.fulfill()
         }
 
-        wait(for: [httpResponseExpectation1], timeout: 1)
+        wait(for: [httpResponseExpectation1], timeout: 10)
 
         httpResponseExpectation2.isInverted = false
 
-        wait(for: [httpResponseExpectation2, flushExpectation], timeout: 1)
+        wait(for: [httpResponseExpectation2, flushExpectation], timeout: 10)
 
         XCTAssertEqual(httpClient.uploadCount, 2)
     }
 
-    func testInvalidEventUpload() {
+    func testInvalidEventUpload() throws {
         let invalidResponseData = "{\"events_with_invalid_fields\": {\"user_id\": [0]}}".data(using: .utf8)!
 
         httpClient.uploadResults = [
@@ -164,24 +171,24 @@ final class EventPipelineTests: XCTestCase {
         pipeline.flush {
             flushExpectation1.fulfill()
         }
-        wait(for: [uploadExpectations[0], flushExpectation1], timeout: 1)
+        wait(for: [uploadExpectations[0], flushExpectation1], timeout: 10)
 
         let flushExpectation2 = expectation(description: "flush-2")
         pipeline.flush {
             flushExpectation2.fulfill()
         }
-        wait(for: [uploadExpectations[1], flushExpectation2], timeout: 1)
+        wait(for: [uploadExpectations[1], flushExpectation2], timeout: 10)
 
         XCTAssertEqual(httpClient.uploadCount, 2)
 
-        let uploadedEvents0 = BaseEvent.fromArrayString(jsonString: httpClient.uploadedEvents[0])
+        let uploadedEvents0 = BaseEvent.fromArrayString(jsonString: try XCTUnwrap(httpClient.uploadedEvents[safe: 0]))
         XCTAssertEqual(uploadedEvents0?.count, 2)
-        XCTAssertEqual(uploadedEvents0?[0].eventType, "testEvent-0")
-        XCTAssertEqual(uploadedEvents0?[1].eventType, "testEvent-1")
+        XCTAssertEqual(uploadedEvents0?[safe: 0]?.eventType, "testEvent-0")
+        XCTAssertEqual(uploadedEvents0?[safe: 1]?.eventType, "testEvent-1")
 
-        let uploadedEvents1 = BaseEvent.fromArrayString(jsonString: httpClient.uploadedEvents[1])
+        let uploadedEvents1 = BaseEvent.fromArrayString(jsonString: try XCTUnwrap(httpClient.uploadedEvents[safe: 1]))
         XCTAssertEqual(uploadedEvents1?.count, 1)
-        XCTAssertEqual(uploadedEvents1?[0].eventType, "testEvent-1")
+        XCTAssertEqual(uploadedEvents1?[safe: 0]?.eventType, "testEvent-1")
     }
 
     // test continues to fail until the event is uploaded
@@ -203,12 +210,14 @@ final class EventPipelineTests: XCTestCase {
         ]
 
         pipeline.flush()
-        wait(for: [uploadExpectations[0], uploadExpectations[1]], timeout: 2)
+        // Expected: upload 0 (instant) + upload 1 (1s retry delay)
+        wait(for: [uploadExpectations[0], uploadExpectations[1]], timeout: 15)
 
         XCTAssertEqual(httpClient.uploadCount, 2)
         XCTAssertEqual(pipeline.configuration.offline, false)
 
-        wait(for: [uploadExpectations[2]], timeout: 3)
+        // Expected: upload 2 (2s retry delay)
+        wait(for: [uploadExpectations[2]], timeout: 15)
 
         XCTAssertEqual(httpClient.uploadCount, 3)
         XCTAssertEqual(pipeline.configuration.offline, true)
@@ -218,9 +227,150 @@ final class EventPipelineTests: XCTestCase {
         pipeline.flush {
             flushExpectation.fulfill()
         }
-        wait(for: [uploadExpectations[3], flushExpectation], timeout: 1)
+        wait(for: [uploadExpectations[3], flushExpectation], timeout: 10)
 
         XCTAssertEqual(httpClient.uploadCount, 4)
+    }
+
+    func testFlushSkipsMultipleUnreadableFiles() throws {
+        let storeDirectory = storage.getEventsStorageDirectory(createDirectory: false)
+
+        // Clear anything written during Amplitude init (e.g. session_start)
+        // so the files below are the only finalized event blocks on disk.
+        storage.reset()
+
+        // Create three finalized event files.
+        for i in 0..<3 {
+            try? pipeline.storage?.write(
+                key: StorageKey.EVENTS,
+                value: BaseEvent(userId: "u", deviceId: "d", eventType: "marker-\(i)")
+            )
+            pipeline.storage?.rollover()
+        }
+
+        let initialFiles = (try FileManager.default.contentsOfDirectory(at: storeDirectory, includingPropertiesForKeys: nil))
+            .filter { $0.pathExtension.isEmpty }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        XCTAssertEqual(initialFiles.count, 3)
+
+        // Corrupt the first two files. The third remains a valid event block.
+        let invalidUTF8 = Data([0xFF, 0xFE, 0xFD, 0xFC, 0xC0, 0xC1, 0xF5])
+        try invalidUTF8.write(to: initialFiles[0])
+        try invalidUTF8.write(to: initialFiles[1])
+
+        let flushExpectation = expectation(description: "flush")
+        pipeline.flush {
+            flushExpectation.fulfill()
+        }
+        wait(for: [flushExpectation], timeout: 10)
+
+        // Pipeline must have walked past the two corrupt files and uploaded the third.
+        XCTAssertEqual(httpClient.uploadCount, 1, "Pipeline should not stall on corrupt files")
+        let uploaded = BaseEvent.fromArrayString(jsonString: try XCTUnwrap(httpClient.uploadedEvents.first))
+        XCTAssertEqual(uploaded?.count, 1)
+        XCTAssertEqual(uploaded?.first?.eventType, "marker-2")
+    }
+
+    func testFlushKeepsSkippingUnreadableFilesAfterUpload() throws {
+        // Counts getEventsString invocations per URL so we can catch the
+        // regression where skipFiles is dropped after a successful upload,
+        // causing quarantine-failed corrupt files to be re-read on each
+        // iteration (O(N×M) instead of O(N+M)).
+        class CountingStorage: PersistentStorage {
+            var readAttempts: [URL: Int] = [:]
+            override func getEventsString(eventBlock: URL) -> String? {
+                readAttempts[eventBlock, default: 0] += 1
+                return super.getEventsString(eventBlock: eventBlock)
+            }
+        }
+
+        let spyStorage = CountingStorage(
+            storagePrefix: "event-pipeline-spy",
+            logger: nil,
+            diagonostics: Diagnostics(),
+            diagnosticsClient: FakeDiagnosticsClient())
+        let spyConfiguration = Configuration(
+            apiKey: "testApiKey",
+            flushIntervalMillis: Int(Self.FLUSH_INTERVAL_SECONDS * 1000),
+            storageProvider: spyStorage,
+            offline: NetworkConnectivityCheckerPlugin.Disabled
+        )
+        let spyAmplitude = Amplitude(configuration: spyConfiguration)
+        let spyHttp = FakeHttpClient(configuration: spyConfiguration, diagnostics: spyConfiguration.diagonostics)
+        let spyPipeline = EventPipeline(amplitude: spyAmplitude)
+        spyPipeline.httpClient = spyHttp
+        spyPipeline.flushTimer?.suspend()
+
+        let storeDirectory = spyStorage.getEventsStorageDirectory(createDirectory: false)
+        // Clear anything written during Amplitude init (e.g. session_start) so
+        // we have a clean slate for the interleaved layout below.
+        spyStorage.reset()
+        spyStorage.readAttempts.removeAll()
+
+        // Layout: [corrupt, good, corrupt, good]. The earlier corrupt file lives
+        // to the left of later good files, so if the upload path drops skipFiles
+        // on recursion the pipeline re-reads the corrupt file after each good
+        // upload.
+        for i in 0..<4 {
+            try? spyPipeline.storage?.write(
+                key: StorageKey.EVENTS,
+                value: BaseEvent(userId: "u", deviceId: "d", eventType: "marker-\(i)")
+            )
+            spyPipeline.storage?.rollover()
+        }
+        let allFiles = try FileManager.default.contentsOfDirectory(at: storeDirectory, includingPropertiesForKeys: nil)
+        let files = allFiles
+            .filter { $0.pathExtension.isEmpty }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+        XCTAssertEqual(files.count, 4)
+
+        let invalidUTF8 = Data([0xFF, 0xFE, 0xFD, 0xFC, 0xC0, 0xC1, 0xF5])
+        try invalidUTF8.write(to: files[0])
+        try invalidUTF8.write(to: files[2])
+
+        // Pre-create the quarantine targets for a window of timestamps around
+        // "now" so PersistentStorage's moveItem throws NSFileWriteFileExistsError.
+        // With quarantine failing, skipFiles must persist across upload recursions
+        // or the pipeline re-reads corrupt files once per good upload.
+        let quarantineDir = storeDirectory.appendingPathComponent(PersistentStorage.QUARANTINE_DIR_NAME)
+        try FileManager.default.createDirectory(at: quarantineDir, withIntermediateDirectories: true)
+        let now = Int(Date().timeIntervalSince1970)
+        var precreated: [URL] = []
+        for delta in -2...10 {
+            for corrupt in [files[0], files[2]] {
+                let blocker = quarantineDir.appendingPathComponent("\(corrupt.lastPathComponent).\(now + delta)")
+                FileManager.default.createFile(atPath: blocker.path, contents: Data())
+                precreated.append(blocker)
+            }
+        }
+
+        let flushExpectation = expectation(description: "flush")
+        spyPipeline.flush {
+            flushExpectation.fulfill()
+        }
+        wait(for: [flushExpectation], timeout: 10)
+
+        XCTAssertEqual(spyHttp.uploadCount, 2, "Both good files should upload exactly once")
+        let uploaded0 = BaseEvent.fromArrayString(jsonString: try XCTUnwrap(spyHttp.uploadedEvents[safe: 0]))
+        let uploaded1 = BaseEvent.fromArrayString(jsonString: try XCTUnwrap(spyHttp.uploadedEvents[safe: 1]))
+        XCTAssertEqual(uploaded0?.first?.eventType, "marker-1")
+        XCTAssertEqual(uploaded1?.first?.eventType, "marker-3")
+
+        // Quarantine failed → corrupt files remain on disk with original names.
+        XCTAssertTrue(FileManager.default.fileExists(atPath: files[0].path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: files[2].path))
+
+        // The key regression assertion: each file is read at most once per flush,
+        // regardless of how many good uploads happened between corrupt files.
+        // Without skipFiles forwarding, the first corrupt file would be re-read
+        // after each good upload (3x total for this layout).
+        for (url, count) in spyStorage.readAttempts {
+            XCTAssertEqual(count, 1, "File \(url.lastPathComponent) was read \(count) times; expected 1")
+        }
+
+        // reset() sweeps the quarantine directory, taking the pre-created blockers with it.
+        spyStorage.reset()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: quarantineDir.path))
     }
 
     func testContinuesHandledFailure() {
@@ -254,7 +404,8 @@ final class EventPipelineTests: XCTestCase {
             flushExpectation.fulfill()
         }
 
-        wait(for: uploadExpectations + [flushExpectation], timeout: 1)
+        wait(for: uploadExpectations + [flushExpectation], timeout: 10)
+
         XCTAssertEqual(httpClient.uploadCount, 3)
         XCTAssertEqual(pipeline.configuration.offline, false)
     }
