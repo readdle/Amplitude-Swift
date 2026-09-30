@@ -85,6 +85,11 @@ public class Configuration {
     public var minTimeBetweenSessionsMillis: Int
     public var identifyBatchIntervalMillis: Int
     public internal(set) var migrateLegacyData: Bool
+
+    /// Location of the legacy Amplitude-iOS database to migrate when `migrateLegacyData` is enabled.
+    /// When nil, the SDK uses its default location, and migration runs only in sandboxed apps.
+    /// When set, migration also runs in non-sandboxed apps.
+    public internal(set) var legacyDatabaseURL: URL?
     @available(*, deprecated, renamed: "autocapture", message: "Please use `autocapture` instead.")
     public lazy var defaultTracking: DefaultTrackingOptions = {
         DefaultTrackingOptions(delegate: self)
@@ -140,6 +145,7 @@ public class Configuration {
         defaultTracking: DefaultTrackingOptions,
         identifyBatchIntervalMillis: Int = Defaults.identifyBatchIntervalMillis,
         migrateLegacyData: Bool = Defaults.migrateLegacyData,
+        legacyDatabaseURL: URL? = nil,
         offline: Bool? = false,
         networkTrackingOptions: NetworkTrackingOptions = Defaults.networkTrackingOptions
     ) {
@@ -168,6 +174,7 @@ public class Configuration {
             autocapture: defaultTracking.autocaptureOptions,
             identifyBatchIntervalMillis: identifyBatchIntervalMillis,
             migrateLegacyData: migrateLegacyData,
+            legacyDatabaseURL: legacyDatabaseURL,
             offline: offline,
             networkTrackingOptions: networkTrackingOptions)
         self.defaultTracking = defaultTracking
@@ -201,6 +208,7 @@ public class Configuration {
         identifyBatchIntervalMillis: Int = Defaults.identifyBatchIntervalMillis,
         maxQueuedEventCount: Int = Defaults.maxQueuedEventCount,
         migrateLegacyData: Bool = Defaults.migrateLegacyData,
+        legacyDatabaseURL: URL? = nil,
         offline: Bool? = false,
         networkTrackingOptions: NetworkTrackingOptions = Defaults.networkTrackingOptions,
         enableAutoCaptureRemoteConfig: Bool = Defaults.enableAutoCaptureRemoteConfig,
@@ -252,6 +260,7 @@ public class Configuration {
         self.identifyBatchIntervalMillis = identifyBatchIntervalMillis
         self.maxQueuedEventCount = maxQueuedEventCount
         self.migrateLegacyData = migrateLegacyData
+        self.legacyDatabaseURL = legacyDatabaseURL
         // Logging is OFF by default
         self.loggerProvider.logLevel = logLevel.rawValue
         self.offline = offline

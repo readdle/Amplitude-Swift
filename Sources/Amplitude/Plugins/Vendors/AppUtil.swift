@@ -181,9 +181,10 @@ import Foundation
             // in MAS, works for this too.
             // macOS 27+ redacts MAC addresses to 02:00:00:00:00:00 on every device, which no
             // longer identifies anything, so treat it as unavailable.
-            guard let macAddress = macAddress(bsd: "en0"), macAddress != "02:00:00:00:00:00" else {
+            guard let macAddress = MacAddress.primaryInterface(), macAddress != "02:00:00:00:00:00" else {
                 return nil
             }
+
             return macAddress
         }
 
@@ -222,52 +223,6 @@ import Foundation
         private func deviceModel() -> String {
             let platform = getPlatformString()
             return getDeviceModel(platform: platform)
-        }
-
-        func macAddress(bsd: String) -> String? {
-            let MAC_ADDRESS_LENGTH = 6
-            let separator = ":"
-
-            var length: size_t = 0
-            var buffer: [CChar]
-
-            let bsdIndex = Int32(if_nametoindex(bsd))
-            if bsdIndex == 0 {
-                return nil
-            }
-            let bsdData = Data(bsd.utf8)
-            var managementInfoBase = [CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, bsdIndex]
-
-            if sysctl(&managementInfoBase, 6, nil, &length, nil, 0) < 0 {
-                return nil
-            }
-
-            buffer = [CChar](
-                unsafeUninitializedCapacity: length,
-                initializingWith: { buffer, initializedCount in
-                    for x in 0..<length { buffer[x] = 0 }
-                    initializedCount = length
-                }
-            )
-
-            if sysctl(&managementInfoBase, 6, &buffer, &length, nil, 0) < 0 {
-                return nil
-            }
-
-            let infoData = Data(bytes: buffer, count: length)
-            let indexAfterMsghdr = MemoryLayout<if_msghdr>.stride + 1
-            guard indexAfterMsghdr < infoData.endIndex,
-                  let rangeOfToken = infoData[indexAfterMsghdr...].range(of: bsdData) else {
-                return nil
-            }
-            let lower = rangeOfToken.upperBound
-            let upper = lower + MAC_ADDRESS_LENGTH
-            guard upper <= infoData.endIndex else {
-                return nil
-            }
-            let macAddressData = infoData[lower..<upper]
-            let addressBytes = macAddressData.map { String(format: "%02x", $0) }
-            return addressBytes.joined(separator: separator)
         }
     }
 #endif
