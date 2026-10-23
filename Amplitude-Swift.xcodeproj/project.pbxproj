@@ -1185,7 +1185,7 @@
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphoneos27*]" = 15.0;
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphonesimulator27*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
@@ -1227,7 +1227,7 @@
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphoneos27*]" = 15.0;
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphonesimulator27*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
@@ -1274,7 +1274,7 @@
 					"@loader_path/../Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
@@ -1312,7 +1312,7 @@
 					"@loader_path/../Frameworks",
 					"@loader_path/Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_LDFLAGS = "$(inherited)";
@@ -1343,7 +1343,7 @@
 					"$(inherited)",
 					"DEBUG=1",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_SWIFT_FLAGS = "$(inherited) -DXcode";
@@ -1365,7 +1365,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GCC_OPTIMIZATION_LEVEL = s;
-				MACOSX_DEPLOYMENT_TARGET = 10.10;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) -DXcode";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1397,7 +1397,7 @@
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphoneos27*]" = 15.0;
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphonesimulator27*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
@@ -1438,7 +1438,7 @@
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphoneos27*]" = 15.0;
 				"IPHONEOS_DEPLOYMENT_TARGET[sdk=iphonesimulator27*]" = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				"MACOSX_DEPLOYMENT_TARGET[sdk=macosx27*]" = 12.0;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_SWIFT_FLAGS = "$(inherited)";
