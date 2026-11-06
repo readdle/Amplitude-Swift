@@ -18,6 +18,7 @@ final class AmplitudeTests: XCTestCase {
     private var interceptStorageTest: TestPersistentStorage!
     private let logger = ConsoleLogger()
     private let diagonostics = Diagnostics()
+    private let diagnosticsClient = FakeDiagnosticsClient()
 
     override func setUp() {
         super.setUp()
@@ -25,8 +26,8 @@ final class AmplitudeTests: XCTestCase {
 
         configuration = Configuration(apiKey: apiKey)
 
-        storage = FakePersistentStorage(storagePrefix: "storage", logger: self.logger, diagonostics: self.diagonostics)
-        interceptStorage = FakePersistentStorage(storagePrefix: "intercept", logger: self.logger, diagonostics: self.diagonostics)
+        storage = FakePersistentStorage(storagePrefix: "storage", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
+        interceptStorage = FakePersistentStorage(storagePrefix: "intercept", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
         configurationWithFakeStorage = Configuration(
             apiKey: apiKey,
             storageProvider: storage,
@@ -40,6 +41,7 @@ final class AmplitudeTests: XCTestCase {
             storageProvider: storageMem,
             identifyStorageProvider: interceptStorageMem,
             autocapture: [],
+            offline: NetworkConnectivityCheckerPlugin.Disabled,
             enableAutoCaptureRemoteConfig: false
         )
     }
@@ -85,7 +87,12 @@ final class AmplitudeTests: XCTestCase {
         XCTAssertEqual(lastEvent?.deviceManufacturer, "Apple")
         XCTAssertEqual(lastEvent?.deviceModel!.isEmpty, false)
         XCTAssertEqual(lastEvent?.ip, "$remote")
-        XCTAssertEqual(lastEvent?.idfv!.isEmpty, false)
+        // No idfv where the OS has none to give, e.g. macOS 27+, which redacts the MAC address.
+        if VendorSystem.current.identifierForVendor != nil {
+            XCTAssertEqual(lastEvent?.idfv?.isEmpty, false)
+        } else {
+            XCTAssertNil(lastEvent?.idfv)
+        }
         XCTAssertNil(lastEvent?.country)
         XCTAssertEqual(lastEvent?.platform!.isEmpty, false)
         XCTAssertEqual(lastEvent?.language!.isEmpty, false)
@@ -199,6 +206,35 @@ final class AmplitudeTests: XCTestCase {
         waitForExpectations(timeout: 10)
     }
 
+    func testPluginResetNotification() {
+        class TestPlugin: Plugin {
+            let type: PluginType = .enrichment
+
+            var reset: (() -> Void)?
+
+            func onReset() {
+                reset?()
+            }
+        }
+
+        let testPlugin = TestPlugin()
+        let amplitude = Amplitude(configuration: Configuration(apiKey: "testPluginChangeNotifications",
+                                                               flushIntervalMillis: 1000000,
+                                                               optOut: false,
+                                                               storageProvider: FakeInMemoryStorage()))
+        amplitude.add(plugin: testPlugin)
+        amplitude.waitForTrackingQueue()
+
+        let resetExpectation = expectation(description: "Should receive reset")
+        testPlugin.reset = {
+            XCTAssertNil(amplitude.getUserId())
+            resetExpectation.fulfill()
+        }
+        amplitude.reset()
+
+        waitForExpectations(timeout: 10)
+    }
+
     func testContextWithDisableTrackingOptions() {
         let apiKey = "testApiKeyForDisableTrackingOptions"
         let trackingOptions = TrackingOptions()
@@ -253,6 +289,89 @@ final class AmplitudeTests: XCTestCase {
         XCTAssertEqual(storage.haveBeenCalledWith.last, "write(key: \(StorageKey.DEVICE_ID.rawValue), test-device)")
     }
 
+    func testConfiguredIdentityIsAppliedDuringInitAndPersisted() {
+        let configuration = Configuration(
+            apiKey: "test-api-key",
+            instanceName: #function,
+            storageProvider: storageMem,
+            identifyStorageProvider: interceptStorageMem,
+            userId: "configured-user",
+            deviceId: "configured-device"
+        )
+
+        let amplitude = Amplitude(configuration: configuration)
+
+        XCTAssertEqual(amplitude.getUserId(), "configured-user")
+        // ContextPlugin.initializeDeviceId runs during setup; it must leave a
+        // configured device id alone rather than replacing it with a random UUID.
+        XCTAssertEqual(amplitude.getDeviceId(), "configured-device")
+        // Written back, so a later launch without the configured values keeps them.
+        XCTAssertEqual(storageMem.read(key: StorageKey.USER_ID), "configured-user")
+        XCTAssertEqual(storageMem.read(key: StorageKey.DEVICE_ID), "configured-device")
+    }
+
+    func testConfiguredIdentityOverridesPersistedIdentity() throws {
+        try storageMem.write(key: StorageKey.USER_ID, value: "persisted-user")
+        try storageMem.write(key: StorageKey.DEVICE_ID, value: "persisted-device")
+
+        let configuration = Configuration(
+            apiKey: "test-api-key",
+            instanceName: #function,
+            storageProvider: storageMem,
+            identifyStorageProvider: interceptStorageMem,
+            userId: "configured-user",
+            deviceId: "configured-device"
+        )
+
+        let amplitude = Amplitude(configuration: configuration)
+
+        XCTAssertEqual(amplitude.getUserId(), "configured-user")
+        XCTAssertEqual(amplitude.getDeviceId(), "configured-device")
+    }
+
+    func testPersistedIdentityIsKeptWhenNotConfigured() throws {
+        try storageMem.write(key: StorageKey.USER_ID, value: "persisted-user")
+        try storageMem.write(key: StorageKey.DEVICE_ID, value: "persisted-device")
+
+        let configuration = Configuration(
+            apiKey: "test-api-key",
+            instanceName: #function,
+            storageProvider: storageMem,
+            identifyStorageProvider: interceptStorageMem
+        )
+
+        let amplitude = Amplitude(configuration: configuration)
+
+        XCTAssertEqual(amplitude.getUserId(), "persisted-user")
+        XCTAssertEqual(amplitude.getDeviceId(), "persisted-device")
+    }
+
+    func testConfiguredIdentityIsOnTheFirstEvent() {
+        let configuration = Configuration(
+            apiKey: "test-api-key",
+            instanceName: #function,
+            storageProvider: storageMem,
+            identifyStorageProvider: interceptStorageMem,
+            userId: "configured-user",
+            deviceId: "configured-device"
+        )
+
+        let amplitude = Amplitude(configuration: configuration)
+        let collector = EventCollectorPlugin()
+        amplitude.add(plugin: collector)
+        amplitude.track(event: BaseEvent(eventType: "test-event"))
+        amplitude.waitForTrackingQueue()
+
+        // The default autocapture is .sessions, so a session_start is generated
+        // ahead of the tracked event. Both must carry the configured identity --
+        // session_start is the one a post-init setUserId cannot reliably reach.
+        XCTAssertEqual(collector.events.map(\.eventType), [Constants.AMP_SESSION_START_EVENT, "test-event"])
+        for event in collector.events {
+            XCTAssertEqual(event.userId, "configured-user")
+            XCTAssertEqual(event.deviceId, "configured-device")
+        }
+    }
+
     func testInterceptedIdentifyIsSentOnFlush() {
         let amplitude = Amplitude(configuration: configurationWithFakeMemoryStorage)
 
@@ -277,8 +396,8 @@ final class AmplitudeTests: XCTestCase {
 
     func testInterceptedIdentifyWithPersistentStorage() {
         let apiKey = "testApiKeyPersist"
-        storageTest = TestPersistentStorage(storagePrefix: "storage", logger: self.logger, diagonostics: self.diagonostics)
-        interceptStorageTest = TestPersistentStorage(storagePrefix: "identify", logger: self.logger, diagonostics: self.diagonostics)
+        storageTest = TestPersistentStorage(storagePrefix: "storage", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
+        interceptStorageTest = TestPersistentStorage(storagePrefix: "identify", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
         let amplitude = Amplitude(configuration: Configuration(
             apiKey: apiKey,
             storageProvider: storageTest,
@@ -542,14 +661,14 @@ final class AmplitudeTests: XCTestCase {
             // don't transfer any events
             flushQueueSize: 1000,
             flushIntervalMillis: 99999,
-            logLevel: LogLevelEnum.DEBUG,
+            logLevel: LogLevelEnum.debug,
             autocapture: [],
             enableAutoCaptureRemoteConfig: false
         )
 
         // Create storages using instance name only
-        let legacyEventStorage = PersistentStorage(storagePrefix: "storage-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics)
-        let legacyIdentityStorage = PersistentStorage(storagePrefix: "identify-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics)
+        let legacyEventStorage = PersistentStorage(storagePrefix: "storage-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
+        let legacyIdentityStorage = PersistentStorage(storagePrefix: "identify-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
 
         // Init Amplitude using legacy storage
         let legacyStorageAmplitude = FakeAmplitudeWithNoInstNameOnlyMigration(
@@ -627,14 +746,14 @@ final class AmplitudeTests: XCTestCase {
                 // don't transfer any events
                 flushQueueSize: 1000,
                 flushIntervalMillis: 99999,
-                logLevel: LogLevelEnum.DEBUG,
+                logLevel: LogLevelEnum.debug,
                 autocapture: [],
                 enableAutoCaptureRemoteConfig: false
             )
 
-        // Create storages using instance name only
-        let legacyEventStorage = FakePersistentStorageAppSandboxEnabled(storagePrefix: "storage-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics)
-        let legacyIdentityStorage = FakePersistentStorageAppSandboxEnabled(storagePrefix: "identify-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics)
+            // Create storages using instance name only
+            let legacyEventStorage = FakePersistentStorageAppSandboxEnabled(storagePrefix: "storage-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
+            let legacyIdentityStorage = FakePersistentStorageAppSandboxEnabled(storagePrefix: "identify-\(config.getNormalizeInstanceName())", logger: self.logger, diagonostics: self.diagonostics, diagnosticsClient: self.diagnosticsClient)
 
             // Init Amplitude using legacy storage
             let legacyStorageAmplitude = FakeAmplitudeWithNoInstNameOnlyMigration(
@@ -791,6 +910,25 @@ final class AmplitudeTests: XCTestCase {
         amplitude.reset()
         XCTAssertNil(amplitude.getUserId())
         XCTAssertNotEqual(amplitude.getDeviceId(), "originalDeviceId")
+    }
+
+    func testResetDoesNotTriggerAnyEventIncludingIdentify() {
+        let amplitude = Amplitude(configuration: configurationWithFakeMemoryStorage)
+        let eventCollector = EventCollectorPlugin()
+        amplitude.add(plugin: eventCollector)
+        amplitude.setUserId(userId: "originalUserId")
+        amplitude.setDeviceId(deviceId: "originalDeviceId")
+        amplitude.identify(userProperties: ["property": "value"])
+        amplitude.waitForTrackingQueue()
+        eventCollector.events.removeAll()
+
+        amplitude.reset()
+        amplitude.waitForTrackingQueue()
+
+        XCTAssertTrue(
+            eventCollector.events.isEmpty,
+            "Expected reset() not to trigger events, but got: \(eventCollector.events.map(\.eventType))"
+        )
     }
 
     func testInit_Offline() {

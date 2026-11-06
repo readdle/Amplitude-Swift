@@ -13,12 +13,44 @@ public struct AutocaptureOptions: OptionSet {
     public static let elementInteractions = AutocaptureOptions(rawValue: 1 << 3)
     /// Won't work on watchOS
     public static let networkTracking     = AutocaptureOptions(rawValue: 1 << 4)
+    /// Rage Click and Dead Click detection
+    public static let frustrationInteractions = AutocaptureOptions(rawValue: 1 << 5)
 
     public static let all: AutocaptureOptions = [
         .sessions,
         .appLifecycles,
         .screenViews,
         .elementInteractions,
-        .networkTracking
+        .networkTracking,
+        .frustrationInteractions,
     ]
+}
+
+extension AutocaptureOptions {
+    func stringRepresentation() -> String {
+        guard rawValue != 0 else { return "none" }
+
+        var options: [String] = []
+
+        if contains(.sessions) {
+            options.append("sessions")
+        }
+        if contains(.appLifecycles) {
+            options.append("appLifecycles")
+        }
+        if contains(.screenViews) {
+            options.append("screenViews")
+        }
+        if contains(.elementInteractions) {
+            options.append("elementInteractions")
+        }
+        if contains(.networkTracking) {
+            options.append("networkTracking")
+        }
+        if contains(.frustrationInteractions) {
+            options.append("frustrationInteractions")
+        }
+
+        return options.joined(separator: ",")
+    }
 }

@@ -44,18 +44,21 @@ import Foundation
             #endif
         }
 
-        private func getPlatformString() -> String {
+        private func getPlatformString() -> String? {
             var name: [Int32] = [CTL_HW, HW_MACHINE]
-            var size: Int = 2
-            sysctl(&name, 2, nil, &size, nil, 0)
-            var hw_machine = [CChar](repeating: 0, count: Int(size))
-            sysctl(&name, 2, &hw_machine, &size, nil, 0)
-            let platform = String(cString: hw_machine)
-            return platform
+            var size: Int = 0
+            guard sysctl(&name, 2, nil, &size, nil, 0) == 0, size > 0 else {
+                return nil
+            }
+            var hw_machine = [CChar](repeating: 0, count: size + 1)
+            guard sysctl(&name, 2, &hw_machine, &size, nil, 0) == 0 else {
+                return nil
+            }
+            return String(cString: hw_machine)
         }
 
         private func deviceModel() -> String {
-            let platform = getPlatformString()
+            let platform = getPlatformString() ?? "unknown"
             return getDeviceModel(platform: platform)
         }
 
@@ -176,7 +179,13 @@ import Foundation
         override var identifierForVendor: String? {
             // apple suggested to use this for receipt validation
             // in MAS, works for this too.
-            return macAddress(bsd: "en0")
+            // macOS 27+ redacts MAC addresses to 02:00:00:00:00:00 on every device, which no
+            // longer identifies anything, so treat it as unavailable.
+            guard let macAddress = MacAddress.primaryInterface(), macAddress != "02:00:00:00:00:00" else {
+                return nil
+            }
+
+            return macAddress
         }
 
         override var os_name: String {
@@ -215,46 +224,6 @@ import Foundation
             let platform = getPlatformString()
             return getDeviceModel(platform: platform)
         }
-
-        private func macAddress(bsd: String) -> String? {
-            let MAC_ADDRESS_LENGTH = 6
-            let separator = ":"
-
-            var length: size_t = 0
-            var buffer: [CChar]
-
-            let bsdIndex = Int32(if_nametoindex(bsd))
-            if bsdIndex == 0 {
-                return nil
-            }
-            let bsdData = Data(bsd.utf8)
-            var managementInfoBase = [CTL_NET, AF_ROUTE, 0, AF_LINK, NET_RT_IFLIST, bsdIndex]
-
-            if sysctl(&managementInfoBase, 6, nil, &length, nil, 0) < 0 {
-                return nil
-            }
-
-            buffer = [CChar](
-                unsafeUninitializedCapacity: length,
-                initializingWith: { buffer, initializedCount in
-                    for x in 0..<length { buffer[x] = 0 }
-                    initializedCount = length
-                }
-            )
-
-            if sysctl(&managementInfoBase, 6, &buffer, &length, nil, 0) < 0 {
-                return nil
-            }
-
-            let infoData = Data(bytes: buffer, count: length)
-            let indexAfterMsghdr = MemoryLayout<if_msghdr>.stride + 1
-            let rangeOfToken = infoData[indexAfterMsghdr...].range(of: bsdData)!
-            let lower = rangeOfToken.upperBound
-            let upper = lower + MAC_ADDRESS_LENGTH
-            let macAddressData = infoData[lower..<upper]
-            let addressBytes = macAddressData.map { String(format: "%02x", $0) }
-            return addressBytes.joined(separator: separator)
-        }
     }
 #endif
 
@@ -290,18 +259,21 @@ import Foundation
             return "watchOS"
         }
 
-        private func getPlatformString() -> String {
+        private func getPlatformString() -> String? {
             var name: [Int32] = [CTL_HW, HW_MACHINE]
-            var size: Int = 2
-            sysctl(&name, 2, nil, &size, nil, 0)
-            var hw_machine = [CChar](repeating: 0, count: Int(size))
-            sysctl(&name, 2, &hw_machine, &size, nil, 0)
-            let platform = String(cString: hw_machine)
-            return platform
+            var size: Int = 0
+            guard sysctl(&name, 2, nil, &size, nil, 0) == 0, size > 0 else {
+                return nil
+            }
+            var hw_machine = [CChar](repeating: 0, count: size + 1)
+            guard sysctl(&name, 2, &hw_machine, &size, nil, 0) == 0 else {
+                return nil
+            }
+            return String(cString: hw_machine)
         }
 
         private func deviceModel() -> String {
-            let platform = getPlatformString()
+            let platform = getPlatformString() ?? "unknown"
             return getDeviceModel(platform: platform)
         }
 
